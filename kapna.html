@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kapna Tea Estate — Family Recipe Bank</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Georgia, 'Times New Roman', serif; background: #FAF7F2; color: #2C1810; min-height: 100vh; }
+
+  /* Header */
+  .header { background: #1C3A2F; padding: 28px 24px 20px; text-align: center; position: relative; overflow: hidden; }
+  .header::before { content: ''; position: absolute; inset: 0; background-image: repeating-linear-gradient(45deg, transparent, transparent 20px, rgba(255,255,255,0.02) 20px, rgba(255,255,255,0.02) 40px); pointer-events: none; }
+  .header-sub { font-size: 10px; letter-spacing: 0.3em; color: #7AAB8A; text-transform: uppercase; margin-bottom: 6px; }
+  .header h1 { font-size: 26px; font-weight: normal; color: #FAF7F2; letter-spacing: 0.05em; }
+  .header-tagline { font-size: 12px; color: #A8C5B0; margin-top: 4px; letter-spacing: 0.1em; }
+  .live-indicator { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 10px; }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #7AAB8A; box-shadow: 0 0 6px #7AAB8A; animation: pulse 2s infinite; }
+  .live-dot.saving { background: #D4A45A; box-shadow: 0 0 6px #D4A45A; }
+  .live-text { font-size: 10px; color: #7AAB8A; letter-spacing: 0.15em; text-transform: uppercase; }
+  .counts { display: flex; justify-content: center; gap: 28px; margin-top: 16px; }
+  .count-item { text-align: center; }
+  .count-num { font-size: 20px; font-weight: bold; }
+  .count-label { font-size: 10px; color: #7AAB8A; letter-spacing: 0.2em; text-transform: uppercase; }
+  .count-num.lunch { color: #D4A45A; }
+  .count-num.dinner { color: #7AAB8A; }
+
+  /* Shared bar */
+  .shared-bar { background: #EEF6F1; border-bottom: 1px solid #D4EAD8; padding: 9px 16px; display: flex; align-items: center; justify-content: space-between; }
+  .shared-text { font-size: 12px; color: #3A7A58; }
+  .refresh-btn { font-size: 12px; color: #3A7A58; background: #D4EAD8; border: none; border-radius: 20px; padding: 4px 12px; cursor: pointer; font-family: inherit; }
+  .refresh-btn:disabled { opacity: 0.6; cursor: wait; }
+
+  /* Save banner */
+  .save-banner { background: #F0FFF4; border-bottom: 1px solid #C6F6D5; padding: 10px 16px; text-align: center; display: none; }
+  .save-banner.show { display: block; }
+  .save-banner span { font-size: 13px; color: #276749; }
+  .save-banner button { margin-left: 10px; background: none; border: none; color: #999; font-size: 12px; cursor: pointer; }
+
+  /* Toast */
+  .toast { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 2000; color: #FFF; padding: 12px 20px; border-radius: 8px; font-size: 13px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); max-width: 90vw; text-align: center; animation: slideDown 0.3s ease; display: none; font-family: Georgia, serif; }
+  .toast.show { display: block; }
+  .toast.success { background: #276749; }
+  .toast.error { background: #C53030; }
+
+  /* Tabs */
+  .tabs { display: flex; border-bottom: 2px solid #E8DDD0; }
+  .tab { flex: 1; padding: 14px 8px; border: none; cursor: pointer; background: #FAF7F2; border-bottom: 3px solid transparent; transition: all 0.2s; font-family: inherit; }
+  .tab.active-lunch { background: #FDF6EC; border-bottom-color: #8B4513; }
+  .tab.active-dinner { background: #F2F7F4; border-bottom-color: #1C3A2F; }
+  .tab-label { font-size: 14px; color: #888; }
+  .tab.active-lunch .tab-label { color: #8B4513; font-weight: bold; }
+  .tab.active-dinner .tab-label { color: #1C3A2F; font-weight: bold; }
+  .tab-sub { font-size: 10px; color: #BBB; letter-spacing: 0.15em; text-transform: uppercase; margin-top: 2px; }
+  .tab.active-lunch .tab-sub { color: #D4A45A; }
+  .tab.active-dinner .tab-sub { color: #7AAB8A; }
+
+  /* Main content */
+  .main { max-width: 640px; margin: 0 auto; padding: 20px 16px; }
+
+  /* Search + Add */
+  .search-row { display: flex; gap: 10px; margin-bottom: 18px; }
+  .search-input { flex: 1; padding: 10px 14px; border-radius: 6px; font-size: 14px; color: #2C1810; font-family: inherit; outline: none; }
+  .search-input.lunch { border: 1px solid rgba(212,164,90,0.3); background: #FDF6EC; }
+  .search-input.dinner { border: 1px solid rgba(122,171,138,0.3); background: #F2F7F4; }
+  .add-btn { padding: 10px 16px; color: #FAF7F2; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+  .add-btn.lunch { background: #8B4513; }
+  .add-btn.dinner { background: #1C3A2F; }
+
+  /* Form */
+  .form-card { border-radius: 10px; padding: 18px 16px; margin-bottom: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); display: none; }
+  .form-card.show { display: block; }
+  .form-card.lunch { background: #FDF6EC; border: 1px solid rgba(212,164,90,0.4); }
+  .form-card.dinner { background: #F2F7F4; border: 1px solid rgba(122,171,138,0.4); }
+  .form-title { font-size: 12px; font-weight: bold; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 14px; }
+  .form-title.lunch { color: #8B4513; }
+  .form-title.dinner { color: #1C3A2F; }
+  .field { margin-bottom: 11px; }
+  .field label { display: block; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #888; margin-bottom: 4px; }
+  .field input, .field textarea, .field select { width: 100%; padding: 9px 12px; border-radius: 5px; font-size: 14px; background: #FFF; color: #2C1810; font-family: inherit; outline: none; }
+  .field input.lunch, .field textarea.lunch, .field select.lunch { border: 1px solid rgba(212,164,90,0.3); }
+  .field input.dinner, .field textarea.dinner, .field select.dinner { border: 1px solid rgba(122,171,138,0.3); }
+  .field textarea { resize: vertical; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .photo-drop { border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; background: #FFF; }
+  .photo-drop.lunch { border: 2px dashed rgba(212,164,90,0.5); }
+  .photo-drop.dinner { border: 2px dashed rgba(122,171,138,0.5); }
+  .photo-drop-icon { font-size: 22px; margin-bottom: 6px; }
+  .photo-drop-text { font-size: 12px; color: #888; }
+  .photo-drop-hint { font-size: 10px; color: #BBB; margin-top: 3px; }
+  .photo-previews { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .photo-thumb { position: relative; }
+  .photo-thumb img { width: 72px; height: 72px; object-fit: cover; border-radius: 6px; }
+  .photo-thumb.lunch img { border: 1px solid rgba(212,164,90,0.3); }
+  .photo-thumb.dinner img { border: 1px solid rgba(122,171,138,0.3); }
+  .photo-remove { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%; background: #E53E3E; border: none; color: #FFF; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
+  .form-actions { display: flex; gap: 10px; margin-top: 14px; }
+  .submit-btn { flex: 1; padding: 11px; color: #FAF7F2; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; font-family: inherit; }
+  .submit-btn.lunch { background: #8B4513; }
+  .submit-btn.dinner { background: #1C3A2F; }
+  .submit-btn:disabled { opacity: 0.7; cursor: wait; }
+  .cancel-btn { padding: 11px 16px; background: transparent; color: #888; border: 1px solid #DDD; border-radius: 6px; font-size: 14px; cursor: pointer; font-family: inherit; }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 40px 24px; }
+  .empty-icon { font-size: 30px; margin-bottom: 10px; }
+  .empty-text { font-size: 14px; color: #BBB; font-style: italic; }
+
+  /* Dish cards */
+  .dish-list { display: flex; flex-direction: column; gap: 10px; }
+  .dish-card { background: #FFF; border-radius: 8px; overflow: hidden; transition: border-color 0.2s, box-shadow 0.2s; }
+  .dish-card.lunch { border: 1px solid #EDE6DC; }
+  .dish-card.dinner { border: 1px solid #EDE6DC; }
+  .dish-card.expanded.lunch { border-color: #D4A45A; box-shadow: 0 4px 16px rgba(212,164,90,0.15); }
+  .dish-card.expanded.dinner { border-color: #7AAB8A; box-shadow: 0 4px 16px rgba(122,171,138,0.15); }
+  .dish-hero { height: 90px; overflow: hidden; position: relative; cursor: pointer; }
+  .dish-hero img { width: 100%; height: 100%; object-fit: cover; }
+  .more-badge { position: absolute; bottom: 6px; right: 8px; background: rgba(0,0,0,0.55); color: #FFF; font-size: 10px; border-radius: 10px; padding: 2px 7px; }
+  .dish-header { display: flex; align-items: center; padding: 13px 15px; cursor: pointer; gap: 12px; }
+  .dish-num { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; flex-shrink: 0; }
+  .dish-num.lunch { background: #FDF6EC; border: 1px solid rgba(212,164,90,0.4); color: #D4A45A; }
+  .dish-num.dinner { background: #F2F7F4; border: 1px solid rgba(122,171,138,0.4); color: #7AAB8A; }
+  .dish-info { flex: 1; min-width: 0; }
+  .dish-name { font-size: 15px; color: #2C1810; }
+  .dish-tags { display: flex; gap: 8px; margin-top: 3px; flex-wrap: wrap; }
+  .dish-tag { font-size: 10px; opacity: 0.8; }
+  .dish-chevron { font-size: 11px; transition: transform 0.2s; }
+  .dish-chevron.open { transform: rotate(180deg); }
+  .dish-chevron.lunch { color: #D4A45A; }
+  .dish-chevron.dinner { color: #7AAB8A; }
+  .dish-body { padding: 0 15px 15px; }
+  .dish-body.lunch { border-top: 1px solid rgba(212,164,90,0.2); }
+  .dish-body.dinner { border-top: 1px solid rgba(122,171,138,0.2); }
+  .dish-tidbit { margin: 13px 0 11px; font-style: italic; font-size: 14px; color: #5C4033; line-height: 1.6; padding-left: 12px; }
+  .dish-tidbit.lunch { border-left: 3px solid #D4A45A; }
+  .dish-tidbit.dinner { border-left: 3px solid #7AAB8A; }
+  .dish-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 13px; }
+  .pill { background: #FAF7F2; border: 1px solid #EDE6DC; border-radius: 20px; padding: 4px 10px; font-size: 11px; }
+  .pill-label { color: #AAA; margin-right: 4px; }
+  .photos-label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #AAA; margin-bottom: 8px; }
+  .photos-grid { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .photos-grid img { width: 80px; height: 80px; object-fit: cover; border-radius: 6px; cursor: pointer; transition: transform 0.15s; }
+  .photos-grid img:hover { transform: scale(1.04); }
+  .photos-grid img.lunch { border: 1px solid rgba(212,164,90,0.25); }
+  .photos-grid img.dinner { border: 1px solid rgba(122,171,138,0.25); }
+  .dish-actions { display: flex; gap: 8px; }
+  .edit-btn { padding: 6px 13px; background: transparent; border-radius: 5px; font-size: 12px; cursor: pointer; font-family: inherit; }
+  .edit-btn.lunch { border: 1px solid #8B4513; color: #8B4513; }
+  .edit-btn.dinner { border: 1px solid #1C3A2F; color: #1C3A2F; }
+  .delete-btn { padding: 6px 13px; background: transparent; border: 1px solid #EEE; color: #CCC; border-radius: 5px; font-size: 12px; cursor: pointer; font-family: inherit; }
+
+  /* Lightbox */
+  .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 1000; display: none; align-items: center; justify-content: center; }
+  .lightbox.show { display: flex; }
+  .lightbox img { max-width: 90vw; max-height: 85vh; border-radius: 6px; object-fit: contain; }
+  .lightbox-prev, .lightbox-next { position: absolute; background: none; border: none; color: #FFF; font-size: 28px; cursor: pointer; opacity: 0.7; top: 50%; transform: translateY(-50%); }
+  .lightbox-prev { left: 16px; }
+  .lightbox-next { right: 16px; }
+  .lightbox-close { position: absolute; top: 16px; right: 20px; background: none; border: none; color: #FFF; font-size: 22px; cursor: pointer; opacity: 0.6; }
+  .lightbox-counter { position: absolute; bottom: 20px; color: rgba(255,255,255,0.5); font-size: 12px; font-family: Georgia, serif; }
+
+  /* Footer */
+  .footer { text-align: center; margin-top: 32px; font-size: 10px; color: #CCC; letter-spacing: 0.15em; }
+
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  @keyframes slideDown { from { opacity: 0; transform: translateX(-50%) translateY(-10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+
+  @media (max-width: 480px) {
+    .two-col { grid-template-columns: 1fr; }
+    .header h1 { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox">
+  <button class="lightbox-prev" onclick="lbNav(-1)">‹</button>
+  <img id="lbImg" src="" alt="dish photo">
+  <button class="lightbox-next" onclick="lbNav(1)">›</button>
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <div class="lightbox-counter" id="lbCounter"></div>
+</div>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-sub">Est. Sylhet, Bangladesh</div>
+  <h1>Kapna Tea Estate</h1>
+  <div class="header-tagline">Family Recipe & Menu Bank</div>
+  <div class="live-indicator">
+    <div class="live-dot" id="liveDot"></div>
+    <span class="live-text" id="liveText">Shared · Live</span>
+  </div>
+  <div class="counts">
+    <div class="count-item">
+      <div class="count-num lunch" id="lunchCount">0</div>
+      <div class="count-label">Lunch</div>
+    </div>
+    <div class="count-item">
+      <div class="count-num dinner" id="dinnerCount">0</div>
+      <div class="count-label">Dinner</div>
+    </div>
+  </div>
+</div>
+
+<!-- Shared bar -->
+<div class="shared-bar">
+  <span class="shared-text">🌿 Shared — anyone with this link can add dishes</span>
+  <button class="refresh-btn" id="refreshBtn" onclick="loadDishes()">↻ Refresh</button>
+</div>
+
+<!-- Save banner -->
+<div class="save-banner" id="saveBanner">
+  <span id="saveBannerText"></span>
+  <button onclick="document.getElementById('saveBanner').classList.remove('show')">✕</button>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab active-lunch" id="tabLunch" onclick="switchTab('lunch')">
+    <div class="tab-label">Lunch</div>
+    <div class="tab-sub">Bangladeshi</div>
+  </button>
+  <button class="tab" id="tabDinner" onclick="switchTab('dinner')">
+    <div class="tab-label">Dinner</div>
+    <div class="tab-sub">Continental</div>
+  </button>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <div class="search-row">
+    <input class="search-input lunch" id="searchInput" type="text" placeholder="Search dishes…" oninput="renderList()">
+    <button class="add-btn lunch" id="addBtn" onclick="openForm()">+ Add Dish</button>
+  </div>
+
+  <!-- Form -->
+  <div class="form-card lunch" id="formCard">
+    <div class="form-title lunch" id="formTitle">New Lunch Dish</div>
+    <div class="field">
+      <label>Dish Name *</label>
+      <input class="lunch" type="text" id="fName" placeholder="e.g. Ilish Bhapa">
+    </div>
+    <div class="field">
+      <label>A special tidbit</label>
+      <textarea class="lunch" id="fTidbit" rows="3" placeholder="A memory, a smell, what makes it special…"></textarea>
+    </div>
+    <div class="two-col">
+      <div class="field">
+        <label>Remembered by</label>
+        <input class="lunch" type="text" id="fRemembered" placeholder="Your name">
+      </div>
+      <div class="field">
+        <label>Someone's favourite</label>
+        <input class="lunch" type="text" id="fFavourite" placeholder="Who loves this?">
+      </div>
+    </div>
+    <div class="field">
+      <label>Season / Occasion</label>
+      <select class="lunch" id="fSeason">
+        <option value="">Select…</option>
+        <option>Year-round</option><option>Summer</option><option>Monsoon</option>
+        <option>Winter</option><option>Eid</option><option>Special Occasion</option>
+        <option>Christmas</option><option>Easter</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Photos</label>
+      <div class="photo-drop lunch" id="photoDrop" onclick="document.getElementById('photoInput').click()" ondragover="event.preventDefault()" ondrop="handleDrop(event)">
+        <div class="photo-drop-icon">📷</div>
+        <div class="photo-drop-text" id="photoDropText">Tap to upload or drag & drop</div>
+        <div class="photo-drop-hint">JPG, PNG · Multiple allowed</div>
+      </div>
+      <input type="file" id="photoInput" accept="image/*" multiple style="display:none" onchange="handlePhotoInput(this.files)">
+      <div class="photo-previews" id="photoPreviews"></div>
+    </div>
+    <div class="form-actions">
+      <button class="submit-btn lunch" id="submitBtn" onclick="handleSubmit()">Add to Bank</button>
+      <button class="cancel-btn" onclick="closeForm()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Dish list -->
+  <div class="dish-list" id="dishList"></div>
+  <div class="empty" id="emptyState" style="display:none">
+    <div class="empty-icon" id="emptyIcon">🍛</div>
+    <div class="empty-text" id="emptyText">No lunch dishes yet — be the first to add one.</div>
+  </div>
+
+  <div class="footer">KAPNA TEA ESTATE · SYLHET · FAMILY ARCHIVE</div>
+</div>
+
+<script>
+const FIREBASE_URL = "https://kapna-recipes-default-rtdb.firebaseio.com";
+
+let activeTab = "lunch";
+let dishes = { lunch: [], dinner: [] };
+let formPhotos = [];
+let editKey = null;
+let expandedKey = null;
+let lbPhotos = [], lbIndex = 0;
+let pollInterval = null;
+let saving = false;
+
+const CAT = {
+  lunch: { color: "#8B4513", accent: "#D4A45A", bg: "#FDF6EC", placeholder: "e.g. Ilish Bhapa" },
+  dinner: { color: "#1C3A2F", accent: "#7AAB8A", bg: "#F2F7F4", placeholder: "e.g. Roast Leg of Lamb" }
+};
+
+// ── Firebase helpers ──────────────────────────────────────────────────────────
+async function fbGet(path) {
+  const r = await fetch(`${FIREBASE_URL}/${path}.json`);
+  if (!r.ok) throw new Error("fetch failed");
+  return r.json();
+}
+async function fbSet(path, data) {
+  const r = await fetch(`${FIREBASE_URL}/${path}.json`, { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(data) });
+  if (!r.ok) throw new Error("set failed");
+  return r.json();
+}
+async function fbPush(path, data) {
+  const r = await fetch(`${FIREBASE_URL}/${path}.json`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(data) });
+  if (!r.ok) throw new Error("push failed");
+  return r.json();
+}
+async function fbDelete(path) {
+  const r = await fetch(`${FIREBASE_URL}/${path}.json`, { method:"DELETE" });
+  if (!r.ok) throw new Error("delete failed");
+}
+
+// ── Load dishes ───────────────────────────────────────────────────────────────
+async function loadDishes(silent = false) {
+  const btn = document.getElementById("refreshBtn");
+  if (!silent) { btn.textContent = "Refreshing…"; btn.disabled = true; }
+  try {
+    const data = await fbGet("dishes");
+    const lunch = [], dinner = [];
+    if (data) {
+      Object.entries(data).forEach(([key, d]) => {
+        const entry = { ...d, firebaseKey: key };
+        if (d.category === "lunch") lunch.push(entry);
+        else if (d.category === "dinner") dinner.push(entry);
+      });
+      lunch.sort((a,b) => (a.createdAt||0)-(b.createdAt||0));
+      dinner.sort((a,b) => (a.createdAt||0)-(b.createdAt||0));
+    }
+    dishes = { lunch, dinner };
+    updateCounts();
+    renderList();
+  } catch(e) {
+    if (!silent) showToast("Couldn't reach the shared list. Check your connection.", "error");
+  }
+  if (!silent) { btn.textContent = "↻ Refresh"; btn.disabled = false; }
+}
+
+function updateCounts() {
+  document.getElementById("lunchCount").textContent = dishes.lunch.length;
+  document.getElementById("dinnerCount").textContent = dishes.dinner.length;
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  activeTab = tab;
+  const c = CAT[tab];
+  document.getElementById("tabLunch").className = "tab" + (tab==="lunch" ? " active-lunch" : "");
+  document.getElementById("tabDinner").className = "tab" + (tab==="dinner" ? " active-dinner" : "");
+  const si = document.getElementById("searchInput");
+  si.className = `search-input ${tab}`;
+  si.value = "";
+  document.getElementById("addBtn").className = `add-btn ${tab}`;
+  closeForm();
+  expandedKey = null;
+  renderList();
+}
+
+// ── Render list ───────────────────────────────────────────────────────────────
+function renderList() {
+  const q = document.getElementById("searchInput").value.toLowerCase();
+  const list = dishes[activeTab].filter(d => d.name.toLowerCase().includes(q));
+  const el = document.getElementById("dishList");
+  const empty = document.getElementById("emptyState");
+
+  if (list.length === 0) {
+    el.innerHTML = "";
+    empty.style.display = "block";
+    document.getElementById("emptyIcon").textContent = activeTab === "lunch" ? "🍛" : "🍽️";
+    document.getElementById("emptyText").textContent = q ? "No dishes match your search." : `No ${activeTab} dishes yet — be the first to add one.`;
+    return;
+  }
+  empty.style.display = "none";
+  el.innerHTML = list.map((d, i) => buildCard(d, i)).join("");
+}
+
+function buildCard(d, i) {
+  const tab = activeTab;
+  const c = CAT[tab];
+  const photos = d.photos || [];
+  const expanded = expandedKey === d.firebaseKey;
+  const chevronClass = `dish-chevron ${tab}${expanded ? " open" : ""}`;
+
+  let heroHtml = "";
+  if (!expanded && photos.length > 0) {
+    heroHtml = `<div class="dish-hero" onclick="openLightbox(${JSON.stringify(photos).replace(/"/g,"&quot;")}, 0)">
+      <img src="${photos[0]}" alt="${d.name}">
+      ${photos.length > 1 ? `<div class="more-badge">+${photos.length-1} more</div>` : ""}
+    </div>`;
+  }
+
+  let tags = "";
+  if (!expanded) {
+    if (d.rememberedBy) tags += `<span class="dish-tag" style="color:${c.color}">👤 ${d.rememberedBy}</span>`;
+    if (d.favourite) tags += `<span class="dish-tag" style="color:${c.accent}">♥ ${d.favourite}'s fave</span>`;
+    if (d.season) tags += `<span class="dish-tag" style="color:#888">🗓 ${d.season}</span>`;
+  }
+
+  let body = "";
+  if (expanded) {
+    let tidbit = d.tidbit ? `<div class="dish-tidbit ${tab}">"${d.tidbit}"</div>` : "";
+    let pills = "";
+    if (d.rememberedBy) pills += `<div class="pill"><span class="pill-label">Remembered by:</span><span style="color:${c.color};font-weight:500">${d.rememberedBy}</span></div>`;
+    if (d.favourite) pills += `<div class="pill"><span class="pill-label">Favourite of:</span><span style="color:${c.accent};font-weight:500">${d.favourite}</span></div>`;
+    if (d.season) pills += `<div class="pill"><span class="pill-label">Season / Occasion:</span><span style="color:#888;font-weight:500">${d.season}</span></div>`;
+
+    let photosHtml = "";
+    if (photos.length > 0) {
+      const thumbs = photos.map((p,idx) => `<img src="${p}" class="${tab}" onclick="openLightbox(${JSON.stringify(photos).replace(/"/g,"&quot;")}, ${idx})" alt="">`).join("");
+      photosHtml = `<div class="photos-label">Photos</div><div class="photos-grid">${thumbs}</div>`;
+    }
+
+    body = `<div class="dish-body ${tab}">
+      ${tidbit}
+      <div class="dish-pills">${pills}</div>
+      ${photosHtml}
+      <div class="dish-actions">
+        <button class="edit-btn ${tab}" onclick="startEdit('${d.firebaseKey}')">Edit</button>
+        <button class="delete-btn" onclick="deleteDish('${d.firebaseKey}', '${d.name.replace(/'/g,"\\'")}')">Delete</button>
+      </div>
+    </div>`;
+  }
+
+  return `<div class="dish-card ${tab}${expanded ? " expanded" : ""}" id="card-${d.firebaseKey}">
+    ${heroHtml}
+    <div class="dish-header" onclick="toggleCard('${d.firebaseKey}')">
+      <div class="dish-num ${tab}">${i+1}</div>
+      <div class="dish-info">
+        <div class="dish-name">${d.name}</div>
+        <div class="dish-tags">${tags}</div>
+      </div>
+      <div class="${chevronClass}">▼</div>
+    </div>
+    ${body}
+  </div>`;
+}
+
+function toggleCard(key) {
+  expandedKey = expandedKey === key ? null : key;
+  renderList();
+}
+
+// ── Form ──────────────────────────────────────────────────────────────────────
+function openForm(prefill = null) {
+  const tab = activeTab;
+  const fc = document.getElementById("formCard");
+  fc.className = `form-card ${tab} show`;
+  document.getElementById("formTitle").className = `form-title ${tab}`;
+  document.getElementById("formTitle").textContent = editKey ? `Edit ${tab.charAt(0).toUpperCase()+tab.slice(1)} Dish` : `New ${tab.charAt(0).toUpperCase()+tab.slice(1)} Dish`;
+  ["fName","fTidbit","fRemembered","fFavourite","fSeason"].forEach(id => {
+    document.getElementById(id).className = tab;
+  });
+  document.getElementById("photoDrop").className = `photo-drop ${tab}`;
+  document.getElementById("submitBtn").className = `submit-btn ${tab}`;
+  document.getElementById("submitBtn").textContent = editKey ? "Save Changes" : "Add to Bank";
+  document.getElementById("addBtn").className = `add-btn ${tab}`;
+
+  if (prefill) {
+    document.getElementById("fName").value = prefill.name || "";
+    document.getElementById("fTidbit").value = prefill.tidbit || "";
+    document.getElementById("fRemembered").value = prefill.rememberedBy || "";
+    document.getElementById("fFavourite").value = prefill.favourite || "";
+    document.getElementById("fSeason").value = prefill.season || "";
+    formPhotos = prefill.photos || [];
+    renderPhotoPreviews();
+  }
+
+  document.getElementById("fName").placeholder = CAT[tab].placeholder;
+  fc.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function closeForm() {
+  document.getElementById("formCard").classList.remove("show");
+  document.getElementById("fName").value = "";
+  document.getElementById("fTidbit").value = "";
+  document.getElementById("fRemembered").value = "";
+  document.getElementById("fFavourite").value = "";
+  document.getElementById("fSeason").value = "";
+  formPhotos = [];
+  editKey = null;
+  renderPhotoPreviews();
+}
+
+function startEdit(key) {
+  const dish = dishes[activeTab].find(d => d.firebaseKey === key);
+  if (!dish) return;
+  editKey = key;
+  openForm(dish);
+}
+
+// ── Photo handling ────────────────────────────────────────────────────────────
+function compressImage(file) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let w = img.width, h = img.height;
+        const MAX = 600;
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round(h*MAX/w); w = MAX; }
+          else { w = Math.round(w*MAX/h); h = MAX; }
+        }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.65));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handlePhotoInput(files) {
+  document.getElementById("photoDropText").textContent = "Processing…";
+  const compressed = await Promise.all(Array.from(files).map(compressImage));
+  formPhotos = [...formPhotos, ...compressed];
+  renderPhotoPreviews();
+  document.getElementById("photoDropText").textContent = "Tap to upload or drag & drop";
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  handlePhotoInput(e.dataTransfer.files);
+}
+
+function removePhoto(i) {
+  formPhotos.splice(i, 1);
+  renderPhotoPreviews();
+}
+
+function renderPhotoPreviews() {
+  const el = document.getElementById("photoPreviews");
+  el.innerHTML = formPhotos.map((p,i) => `
+    <div class="photo-thumb ${activeTab}">
+      <img src="${p}" alt="">
+      <button class="photo-remove" onclick="removePhoto(${i})">✕</button>
+    </div>`).join("");
+}
+
+// ── Submit ────────────────────────────────────────────────────────────────────
+async function handleSubmit() {
+  const name = document.getElementById("fName").value.trim();
+  if (!name) return;
+  setSaving(true);
+  try {
+    const entry = {
+      name,
+      tidbit: document.getElementById("fTidbit").value.trim(),
+      rememberedBy: document.getElementById("fRemembered").value.trim(),
+      favourite: document.getElementById("fFavourite").value.trim(),
+      season: document.getElementById("fSeason").value,
+      photos: formPhotos,
+      category: activeTab,
+      createdAt: editKey ? (dishes[activeTab].find(d=>d.firebaseKey===editKey)?.createdAt || Date.now()) : Date.now(),
+      updatedAt: Date.now(),
+    };
+    if (editKey) {
+      await fbSet(`dishes/${editKey}`, entry);
+    } else {
+      await fbPush("dishes", entry);
+    }
+    showToast(`"${name}" saved to the shared list ✓`);
+    showSaveBanner(name);
+    closeForm();
+    await loadDishes(true);
+  } catch(e) {
+    showToast("Something went wrong — please try again.", "error");
+  }
+  setSaving(false);
+}
+
+async function deleteDish(key, name) {
+  if (!confirm(`Remove "${name}" from the list?`)) return;
+  try {
+    await fbDelete(`dishes/${key}`);
+    if (expandedKey === key) expandedKey = null;
+    await loadDishes(true);
+    showToast(`"${name}" removed.`);
+  } catch(e) {
+    showToast("Couldn't delete. Try again.", "error");
+  }
+}
+
+// ── UI helpers ────────────────────────────────────────────────────────────────
+function setSaving(on) {
+  saving = on;
+  const dot = document.getElementById("liveDot");
+  const txt = document.getElementById("liveText");
+  const btn = document.getElementById("submitBtn");
+  dot.className = "live-dot" + (on ? " saving" : "");
+  txt.textContent = on ? "Saving…" : "Shared · Live";
+  if (btn) { btn.disabled = on; btn.textContent = on ? "Saving…" : (editKey ? "Save Changes" : "Add to Bank"); }
+}
+
+let toastTimer;
+function showToast(msg, type="success") {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 4000);
+}
+
+function showSaveBanner(name) {
+  const b = document.getElementById("saveBanner");
+  document.getElementById("saveBannerText").innerHTML = `✓ <strong>"${name}"</strong> was saved. If you don't see it, tap Refresh.`;
+  b.classList.add("show");
+}
+
+// ── Lightbox ──────────────────────────────────────────────────────────────────
+function openLightbox(photos, index) {
+  lbPhotos = photos; lbIndex = index;
+  document.getElementById("lbImg").src = photos[index];
+  document.getElementById("lbCounter").textContent = `${index+1} / ${photos.length} · tap outside to close`;
+  document.getElementById("lightbox").classList.add("show");
+}
+function closeLightbox() { document.getElementById("lightbox").classList.remove("show"); }
+function lbNav(dir) {
+  lbIndex = (lbIndex + dir + lbPhotos.length) % lbPhotos.length;
+  document.getElementById("lbImg").src = lbPhotos[lbIndex];
+  document.getElementById("lbCounter").textContent = `${lbIndex+1} / ${lbPhotos.length} · tap outside to close`;
+}
+document.getElementById("lightbox").addEventListener("click", function(e) {
+  if (e.target === this) closeLightbox();
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadDishes();
+pollInterval = setInterval(() => loadDishes(true), 20000);
+</script>
+</body>
+</html>
