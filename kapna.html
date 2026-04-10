@@ -267,6 +267,11 @@
       </select>
     </div>
     <div class="field">
+      <label>Recipe</label>
+      <textarea class="lunch" id="fRecipe" rows="6" placeholder="Ingredients, method, quantities… add as much or as little as you know."></textarea>
+      <div style="font-size:11px; color:#AAA; margin-top:5px; font-style:italic;">Don't worry if you don't have this yet — that's exactly why we're doing this 🍵</div>
+    </div>
+    <div class="field">
       <label>Photos</label>
       <div class="photo-drop lunch" id="photoDrop" onclick="document.getElementById('photoInput').click()" ondragover="event.preventDefault()" ondrop="handleDrop(event)">
         <div class="photo-drop-icon">📷</div>
@@ -429,9 +434,17 @@ function buildCard(d, i) {
       photosHtml = `<div class="photos-label">Photos</div><div class="photos-grid">${thumbs}</div>`;
     }
 
+    let recipeHtml = d.recipe
+      ? `<div style="margin-bottom:14px">
+          <div class="photos-label">Recipe</div>
+          <div style="font-size:13px;color:#4A3728;line-height:1.8;white-space:pre-wrap;background:#FFFDF8;border-radius:6px;padding:12px;border:1px solid #EDE6DC;">${d.recipe}</div>
+         </div>`
+      : `<div style="margin-bottom:14px;font-size:12px;color:#CCC;font-style:italic;">No recipe yet — don't worry, that's exactly why we're doing this 🍵</div>`;
+
     body = `<div class="dish-body ${tab}">
       ${tidbit}
       <div class="dish-pills">${pills}</div>
+      ${recipeHtml}
       ${photosHtml}
       <div class="dish-actions">
         <button class="edit-btn ${tab}" onclick="startEdit('${d.firebaseKey}')">Edit</button>
@@ -466,7 +479,7 @@ function openForm(prefill = null) {
   fc.className = `form-card ${tab} show`;
   document.getElementById("formTitle").className = `form-title ${tab}`;
   document.getElementById("formTitle").textContent = editKey ? `Edit ${tab.charAt(0).toUpperCase()+tab.slice(1)} Dish` : `New ${tab.charAt(0).toUpperCase()+tab.slice(1)} Dish`;
-  ["fName","fTidbit","fRemembered","fFavourite","fSeason"].forEach(id => {
+  ["fName","fTidbit","fRemembered","fFavourite","fSeason","fRecipe"].forEach(id => {
     document.getElementById(id).className = tab;
   });
   document.getElementById("photoDrop").className = `photo-drop ${tab}`;
@@ -480,6 +493,7 @@ function openForm(prefill = null) {
     document.getElementById("fRemembered").value = prefill.rememberedBy || "";
     document.getElementById("fFavourite").value = prefill.favourite || "";
     document.getElementById("fSeason").value = prefill.season || "";
+    document.getElementById("fRecipe").value = prefill.recipe || "";
     formPhotos = prefill.photos || [];
     renderPhotoPreviews();
   }
@@ -495,6 +509,7 @@ function closeForm() {
   document.getElementById("fRemembered").value = "";
   document.getElementById("fFavourite").value = "";
   document.getElementById("fSeason").value = "";
+  document.getElementById("fRecipe").value = "";
   formPhotos = [];
   editKey = null;
   renderPhotoPreviews();
@@ -570,6 +585,7 @@ async function handleSubmit() {
       rememberedBy: document.getElementById("fRemembered").value.trim(),
       favourite: document.getElementById("fFavourite").value.trim(),
       season: document.getElementById("fSeason").value,
+      recipe: document.getElementById("fRecipe").value.trim(),
       photos: formPhotos,
       category: activeTab,
       createdAt: editKey ? (dishes[activeTab].find(d=>d.firebaseKey===editKey)?.createdAt || Date.now()) : Date.now(),
